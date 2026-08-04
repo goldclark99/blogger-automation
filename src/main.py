@@ -91,6 +91,12 @@ def run_evening(cfg: dict) -> list[dict]:
             "official_sources": [str(source.url) for source in article.official_sources],
             "dry_run": dry_run,
         }
+        if dry_run:
+            drafts_dir = ROOT / "reports" / "drafts"
+            drafts_dir.mkdir(parents=True, exist_ok=True)
+            draft_path = drafts_dir / f"{stamp}-{blog_key}.html"
+            draft_path.write_text(body, encoding="utf-8")
+            result["draft_html"] = str(draft_path.relative_to(ROOT)).replace("\\", "/")
         if not dry_run:
             published = client.create_scheduled_post(
                 title=article.title,

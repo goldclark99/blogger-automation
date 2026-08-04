@@ -9,4 +9,6 @@ oauth-output*.json
 .oauth-authorize-*.txt
 reports/*.json
 reports/*.md
+reports/drafts/
+reports/run-*/
 !reports/.gitkeep
