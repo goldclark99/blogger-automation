@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from src.images import public_image_url
 from src.main import next_publish_time, scheduled_run_is_disabled
+from src.blogger_client import normalize_status_for_api
 
 
 def test_next_publish_time_same_day_before_slot():
@@ -31,3 +32,9 @@ def test_manual_dry_run_still_allowed(monkeypatch):
     monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
     monkeypatch.setenv("AUTOMATION_ENABLED", "false")
     assert scheduled_run_is_disabled() is False
+
+
+def test_blogger_statuses_are_normalized_for_api():
+    assert normalize_status_for_api("live") == "LIVE"
+    assert normalize_status_for_api("draft") == "DRAFT"
+    assert normalize_status_for_api("scheduled") == "SCHEDULED"

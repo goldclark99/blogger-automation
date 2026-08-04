@@ -11,6 +11,10 @@ from .config import env
 BLOGGER_SCOPE = "https://www.googleapis.com/auth/blogger"
 
 
+def normalize_status_for_api(status: str) -> str:
+    return status.upper()
+
+
 class BloggerClient:
     def __init__(self, blog_id: str, refresh_token_env: str):
         credentials = Credentials(
@@ -27,13 +31,14 @@ class BloggerClient:
     def list_posts(self, statuses: Iterable[str], limit: int = 60) -> list[dict]:
         posts: list[dict] = []
         for status in statuses:
+            api_status = normalize_status_for_api(status)
             page_token = None
             while len(posts) < limit:
                 result = (
                     self.service.posts()
                     .list(
                         blogId=self.blog_id,
-                        status=status,
+                        status=api_status,
                         view="ADMIN",
                         fetchBodies=True,
                         fetchImages=True,
@@ -46,7 +51,7 @@ class BloggerClient:
                     posts.append(
                         {
                             "id": item.get("id"),
-                            "status": item.get("status", status),
+                            "status": item.get("status", api_status).lower(),
                             "title": item.get("title", ""),
                             "content": item.get("content", ""),
                             "labels": item.get("labels", []),
@@ -75,4 +80,3 @@ class BloggerClient:
             .publish(blogId=self.blog_id, postId=draft["id"], publishDate=publish_at)
             .execute()
         )
-
