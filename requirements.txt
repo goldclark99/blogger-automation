@@ -4,6 +4,7 @@ google-api-python-client>=2.160,<3
 google-auth>=2.38,<3
 google-auth-oauthlib>=1.2,<2
 openai>=1.75,<3
+Pillow>=11.2,<13
 pydantic>=2.10,<3
 PyYAML>=6.0,<7
 requests>=2.32,<3

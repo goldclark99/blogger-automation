@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
 from openai import OpenAI
 
 from .models import Article, ResearchPacket
@@ -21,6 +22,11 @@ BLOCKED_SOURCE_HOSTS = {
     "x.com",
     "youtube.com",
 }
+AUTO_CITATION_RE = re.compile(r"\s*\(\[[^\]]+\]\(https?://[^)]+\)\)")
+
+
+def clean_generated_html(value: str) -> str:
+    return AUTO_CITATION_RE.sub("", value).strip()
 
 
 def _json_from_text(text: str) -> dict:
@@ -51,21 +57,34 @@ TODAY'S OUTPUT SCHEMA:
 Use web search to verify the topic against current primary sources. Select one topic that passes every gate.
 The HTML must begin with the subtitle and 30-second summary; do not include an H1 because Blogger supplies the title.
 """
-    response = OpenAI().responses.create(
-        model=cfg["text_model"],
-        reasoning={"effort": "medium"},
-        tools=[{"type": "web_search"}],
-        input=prompt,
-    )
-    article = Article.model_validate(_json_from_text(response.output_text))
-    validate_article(
-        article,
-        blog_cfg,
-        packet,
-        duplicate_threshold=float(cfg["duplicate_title_threshold"]),
-        minimum_sources=int(cfg["minimum_official_sources"]),
-    )
-    return article
+    for attempt in range(2):
+        response = OpenAI().responses.create(
+            model=cfg["text_model"],
+            reasoning={"effort": "medium"},
+            tools=[{"type": "web_search"}],
+            input=prompt,
+        )
+        try:
+            article = Article.model_validate(_json_from_text(response.output_text))
+            article = article.model_copy(
+                update={"content_html": clean_generated_html(article.content_html)}
+            )
+            validate_article(
+                article,
+                blog_cfg,
+                packet,
+                duplicate_threshold=float(cfg["duplicate_title_threshold"]),
+                minimum_sources=int(cfg["minimum_official_sources"]),
+            )
+            return article
+        except ValueError as exc:
+            if attempt:
+                raise
+            prompt += (
+                "\n\nThe previous output failed validation: "
+                f"{exc}. Regenerate the complete JSON object and correct that issue."
+            )
+    raise RuntimeError("Article generation did not return a valid result")
 
 
 def validate_article(
@@ -76,6 +95,22 @@ def validate_article(
     duplicate_threshold: float,
     minimum_sources: int,
 ) -> None:
+    soup = BeautifulSoup(article.content_html, "html.parser")
+    if soup.find("h1"):
+        raise ValueError("content_html must not contain an H1")
+    if re.search(r"\[[^\]]+\]\(https?://", article.content_html):
+        raise ValueError("Markdown links are not allowed in content_html")
+    footer_markers = (
+        "disclaimer:",
+        "updated:",
+        "official sources:",
+        "อัปเดตล่าสุด",
+        "แหล่งข้อมูลทางการ",
+    )
+    if any(marker in soup.get_text(" ", strip=True).casefold() for marker in footer_markers):
+        raise ValueError("content_html must not duplicate the wrapper footer")
+    if len(soup.find_all("h2")) < 6 or not soup.find("table"):
+        raise ValueError("content_html needs at least six H2 sections and one useful table")
     if article.category not in blog_cfg["categories"]:
         raise ValueError(f"Invalid category: {article.category}")
     if article.category not in article.labels:

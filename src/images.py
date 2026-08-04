@@ -5,6 +5,22 @@ from pathlib import Path
 
 import requests
 from openai import OpenAI
+from PIL import Image
+
+
+def crop_to_16_9(path: Path) -> None:
+    with Image.open(path) as source:
+        width, height = source.size
+        target_ratio = 16 / 9
+        if width / height > target_ratio:
+            target_width = round(height * target_ratio)
+            left = (width - target_width) // 2
+            box = (left, 0, left + target_width, height)
+        else:
+            target_height = round(width / target_ratio)
+            top = (height - target_height) // 2
+            box = (0, top, width, top + target_height)
+        source.crop(box).save(path, format="PNG", optimize=True)
 
 
 def generate_thumbnail(*, article, blog_key: str, model: str, size: str, quality: str, output_dir: Path) -> Path:
@@ -29,6 +45,7 @@ Preserve exact spelling and numbers.
         target.write_bytes(response.content)
     else:
         raise RuntimeError("Image API returned neither b64_json nor URL")
+    crop_to_16_9(target)
     return target
 
 
@@ -37,4 +54,3 @@ def public_image_url(*, repository: str, branch: str, relative_path: str) -> str
         raise RuntimeError("GITHUB_REPOSITORY is required for public thumbnail URLs")
     clean_path = relative_path.replace("\\", "/")
     return f"https://raw.githubusercontent.com/{repository}/{branch}/{clean_path}"
-

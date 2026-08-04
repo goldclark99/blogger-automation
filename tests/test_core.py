@@ -1,7 +1,10 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.images import public_image_url
+from PIL import Image
+
+from src.images import crop_to_16_9, public_image_url
+from src.writer import clean_generated_html
 from src.main import next_publish_time, scheduled_run_is_disabled
 from src.blogger_client import normalize_status_for_api
 
@@ -38,3 +41,16 @@ def test_blogger_statuses_are_normalized_for_api():
     assert normalize_status_for_api("live") == "LIVE"
     assert normalize_status_for_api("draft") == "DRAFT"
     assert normalize_status_for_api("scheduled") == "SCHEDULED"
+
+
+def test_generated_web_citation_markers_are_removed():
+    value = '<p>Fact. ([agency.gov](https://agency.gov/page?utm_source=openai))</p>'
+    assert clean_generated_html(value) == "<p>Fact.</p>"
+
+
+def test_thumbnail_is_cropped_to_16_9(tmp_path):
+    image_path = tmp_path / "thumbnail.png"
+    Image.new("RGB", (1536, 1024), "navy").save(image_path)
+    crop_to_16_9(image_path)
+    with Image.open(image_path) as result:
+        assert result.size == (1536, 864)
