@@ -52,7 +52,7 @@ jobs:
           cache: pip
 
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - run: python -m pytest -q
 
       - name: Select mode
         id: mode
@@ -97,4 +97,3 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: gh issue create --title "Weekly Blogger briefing $(date -u +%F)" --body-file reports/weekly-latest.json
-
