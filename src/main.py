@@ -4,7 +4,7 @@ import argparse
 import html
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -19,6 +19,32 @@ def next_publish_time(now: datetime, hour: int) -> datetime:
     candidate = now.replace(hour=hour, minute=0, second=0, microsecond=0)
     if candidate <= now:
         candidate += timedelta(days=1)
+    while not is_publish_day(candidate.date()):
+        candidate += timedelta(days=1)
+    return candidate
+
+
+def is_publish_day(day: date) -> bool:
+    if day <= date(2026, 9, 2):
+        return True
+    if day <= date(2026, 10, 2):
+        return day.weekday() < 5
+    return day.weekday() in {0, 1, 3, 5}
+
+
+def next_available_publish_time(now: datetime, hour: int, posts: list[dict]) -> datetime:
+    candidate = next_publish_time(now, hour)
+    occupied: set[datetime] = set()
+    for post in posts:
+        if post.get("status") != "scheduled" or not post.get("published"):
+            continue
+        try:
+            scheduled = datetime.fromisoformat(post["published"].replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        occupied.add(scheduled.astimezone(now.tzinfo).replace(second=0, microsecond=0))
+    while candidate in occupied:
+        candidate = next_publish_time(candidate + timedelta(minutes=1), hour)
     return candidate
 
 
@@ -41,7 +67,8 @@ def scheduled_run_is_disabled() -> bool:
 def run_evening(cfg: dict) -> list[dict]:
     timezone = ZoneInfo(cfg["timezone"])
     now = datetime.now(timezone)
-    publish_at = next_publish_time(now, cfg["publish_hour"])
+    if not is_publish_day(now.date()):
+        return [{"status": "skipped", "reason": "Not a publication day in the 90-day cadence"}]
     dry_run = is_true("DRY_RUN", True) or not is_true("AUTOMATION_ENABLED", False)
     repository = env("GITHUB_REPOSITORY", required=not dry_run)
     branch = env("GITHUB_REF_NAME", required=False, default="main")
@@ -50,6 +77,7 @@ def run_evening(cfg: dict) -> list[dict]:
     for blog_key, blog_cfg in cfg["blogs"].items():
         client = BloggerClient(blog_cfg["blog_id"], blog_cfg["refresh_token_env"])
         existing = client.list_posts(["live", "draft", "scheduled"], cfg["recent_post_limit"])
+        publish_at = next_available_publish_time(now, cfg["publish_hour"], existing)
         packet = build_packet(blog_key, existing)
         article = generate_article(cfg=cfg, blog_cfg=blog_cfg, packet=packet)
 

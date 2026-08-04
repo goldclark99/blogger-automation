@@ -5,7 +5,12 @@ from PIL import Image
 
 from src.images import crop_to_16_9, public_image_url
 from src.writer import clean_generated_html
-from src.main import next_publish_time, scheduled_run_is_disabled
+from src.main import (
+    is_publish_day,
+    next_available_publish_time,
+    next_publish_time,
+    scheduled_run_is_disabled,
+)
 from src.blogger_client import normalize_status_for_api
 
 
@@ -54,3 +59,18 @@ def test_thumbnail_is_cropped_to_16_9(tmp_path):
     crop_to_16_9(image_path)
     with Image.open(image_path) as result:
         assert result.size == (1536, 864)
+
+
+def test_90_day_publication_cadence():
+    assert is_publish_day(datetime(2026, 8, 30).date()) is True
+    assert is_publish_day(datetime(2026, 9, 5).date()) is False
+    assert is_publish_day(datetime(2026, 9, 7).date()) is True
+    assert is_publish_day(datetime(2026, 10, 7).date()) is False
+    assert is_publish_day(datetime(2026, 10, 8).date()) is True
+
+
+def test_occupied_slot_moves_to_next_valid_slot():
+    now = datetime(2026, 9, 4, 18, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    posts = [{"status": "scheduled", "published": "2026-09-04T20:00:00+09:00"}]
+    result = next_available_publish_time(now, 20, posts)
+    assert result.isoformat() == "2026-09-07T20:00:00+09:00"

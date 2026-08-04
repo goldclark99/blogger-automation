@@ -33,7 +33,8 @@ class BloggerClient:
         for status in statuses:
             api_status = normalize_status_for_api(status)
             page_token = None
-            while len(posts) < limit:
+            status_posts: list[dict] = []
+            while len(status_posts) < limit:
                 result = (
                     self.service.posts()
                     .list(
@@ -42,13 +43,13 @@ class BloggerClient:
                         view="ADMIN",
                         fetchBodies=True,
                         fetchImages=True,
-                        maxResults=min(50, limit - len(posts)),
+                        maxResults=min(50, limit - len(status_posts)),
                         pageToken=page_token,
                     )
                     .execute()
                 )
                 for item in result.get("items", []):
-                    posts.append(
+                    status_posts.append(
                         {
                             "id": item.get("id"),
                             "status": item.get("status", api_status).lower(),
@@ -63,7 +64,8 @@ class BloggerClient:
                 page_token = result.get("nextPageToken")
                 if not page_token:
                     break
-        return posts[:limit]
+            posts.extend(status_posts)
+        return posts
 
     def create_scheduled_post(self, *, title: str, content: str, labels: list[str], publish_at: str) -> dict:
         draft = (

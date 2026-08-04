@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import feedparser
+from bs4 import BeautifulSoup
 
 from .models import ResearchPacket
 
@@ -34,6 +35,9 @@ def build_packet(blog_key: str, existing_posts: list[dict]) -> ResearchPacket:
             "labels": post.get("labels", []),
             "published": post.get("published"),
             "url": post.get("url"),
+            "content_excerpt": BeautifulSoup(
+                post.get("content", ""), "html.parser"
+            ).get_text(" ", strip=True)[:800],
         }
         for post in existing_posts
     ]
@@ -43,4 +47,3 @@ def build_packet(blog_key: str, existing_posts: list[dict]) -> ResearchPacket:
         existing_posts=compact_posts,
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
-
