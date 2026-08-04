@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from src.images import public_image_url
-from src.main import next_publish_time
+from src.main import next_publish_time, scheduled_run_is_disabled
 
 
 def test_next_publish_time_same_day_before_slot():
@@ -20,3 +20,14 @@ def test_public_image_url_uses_raw_github():
         repository="owner/repo", branch="main", relative_path="assets\\thumbnails\\x.png"
     ) == "https://raw.githubusercontent.com/owner/repo/main/assets/thumbnails/x.png"
 
+
+def test_disabled_schedule_skips_work(monkeypatch):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "schedule")
+    monkeypatch.setenv("AUTOMATION_ENABLED", "false")
+    assert scheduled_run_is_disabled() is True
+
+
+def test_manual_dry_run_still_allowed(monkeypatch):
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+    monkeypatch.setenv("AUTOMATION_ENABLED", "false")
+    assert scheduled_run_is_disabled() is False

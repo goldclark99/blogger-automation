@@ -32,6 +32,12 @@ def image_html(url: str, alt: str) -> str:
     )
 
 
+def scheduled_run_is_disabled() -> bool:
+    return os.getenv("GITHUB_EVENT_NAME") == "schedule" and not is_true(
+        "AUTOMATION_ENABLED", False
+    )
+
+
 def run_evening(cfg: dict) -> list[dict]:
     timezone = ZoneInfo(cfg["timezone"])
     now = datetime.now(timezone)
@@ -129,6 +135,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["morning", "evening", "weekly"], required=True)
     args = parser.parse_args()
+    if scheduled_run_is_disabled():
+        print(json.dumps({"status": "skipped", "reason": "AUTOMATION_ENABLED is false"}))
+        return
     cfg = load_config()
     runners = {"morning": run_morning, "evening": run_evening, "weekly": run_weekly}
     result = runners[args.mode](cfg)
@@ -141,4 +150,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
