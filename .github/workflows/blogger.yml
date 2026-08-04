@@ -1,0 +1,100 @@
+name: Blogger automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run mode
+        required: true
+        default: morning
+        type: choice
+        options: [morning, evening, weekly]
+      dry_run:
+        description: Generate and validate without publishing
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "0 21 * * *" # 06:00 Asia/Seoul
+    - cron: "0 9 * * *"  # 18:00 Asia/Seoul
+    - cron: "0 4 * * 0"  # Sunday 13:00 Asia/Seoul
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: blogger-automation
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      BLOGGER_EN_REFRESH_TOKEN: ${{ secrets.BLOGGER_EN_REFRESH_TOKEN }}
+      BLOGGER_TH_REFRESH_TOKEN: ${{ secrets.BLOGGER_TH_REFRESH_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_REF_NAME: ${{ github.event.repository.default_branch }}
+      AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED || 'false' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+
+      - name: Select mode
+        id: mode
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MODE="${{ inputs.mode }}"
+          elif [[ "${{ github.event.schedule }}" == "0 21 * * *" ]]; then
+            MODE="morning"
+          elif [[ "${{ github.event.schedule }}" == "0 4 * * 0" ]]; then
+            MODE="weekly"
+          else
+            MODE="evening"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Run automation
+        run: python -m src.main --mode "${{ steps.mode.outputs.mode }}"
+
+      - name: Commit generated public thumbnails
+        if: steps.mode.outputs.mode == 'evening' && env.DRY_RUN != 'true'
+        shell: bash
+        run: |
+          git config user.name "blogger-automation[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/thumbnails
+          if ! git diff --cached --quiet; then
+            git commit -m "Add scheduled Blogger thumbnails [skip ci]"
+            git push
+          fi
+
+      - name: Upload run report
+        uses: actions/upload-artifact@v4
+        with:
+          name: blogger-${{ steps.mode.outputs.mode }}-${{ github.run_id }}
+          path: reports/*.json
+          retention-days: 30
+
+      - name: Create weekly briefing issue
+        if: steps.mode.outputs.mode == 'weekly'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh issue create --title "Weekly Blogger briefing $(date -u +%F)" --body-file reports/weekly-latest.json
+

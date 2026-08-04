@@ -1,0 +1,78 @@
+timezone: Asia/Seoul
+publish_hour: 20
+text_model: gpt-5.6-terra
+image_model: gpt-image-2
+image_size: 1536x1024
+image_quality: medium
+recent_post_limit: 60
+duplicate_title_threshold: 0.72
+minimum_official_sources: 2
+
+blogs:
+  english:
+    blog_id: "4042819202937983722"
+    public_url: "https://goldclark.blogspot.com"
+    language: en-US
+    refresh_token_env: BLOGGER_EN_REFRESH_TOKEN
+    persona: >-
+      A trusted US business editor writing for small-business CEOs, CFOs,
+      HR managers and operators aged 30–55. Lead with who is affected,
+      the amount or deadline, required records, action steps and limitations.
+    topic_mix:
+      core: "80% US small-business policy, tax, employment compliance and practical AI"
+      secondary: "20% supply chains, semiconductors, autos and Korean companies in the US"
+    categories:
+      - Policy & Regulations
+      - Tax & Credits
+      - AI & Business Technology
+      - Workforce & Compliance
+      - Market & Industry Trends
+    official_domain_hints:
+      - .gov
+      - irs.gov
+      - sba.gov
+      - dol.gov
+      - sec.gov
+      - nhtsa.gov
+      - commerce.gov
+      - federalregister.gov
+    disclaimer: >-
+      Disclaimer: This article is for informational purposes only and does not
+      constitute professional tax, legal, or financial advice. Consult with a
+      certified CPA or attorney for your specific business situation.
+
+  thai:
+    blog_id: "3931628138636454476"
+    public_url: "https://goldclark99.blogspot.com"
+    language: th-TH
+    refresh_token_env: BLOGGER_TH_REFRESH_TOKEN
+    persona: >-
+      A natural modern Thai editor for readers aged 20–45 who search on mobile
+      for Thai policy, prices, work, digital services and Korean issues with a
+      direct practical impact. Explain what changed, who is affected, dates,
+      amounts, required action and common mistakes without translation-like prose.
+    topic_mix:
+      thailand_policy: 25
+      thailand_economy: 20
+      korea_practical_impact: 25
+      korea_travel: 20
+      ai_digital_tools: 10
+    categories:
+      - Thailand Policy & Public Services
+      - Thailand Economy & Cost of Living
+      - Korea News & Practical Impact
+      - Korea Travel & Visa
+      - AI & Digital Tools
+    official_domain_hints:
+      - .go.th
+      - ratchakitcha.soc.go.th
+      - thaigov.go.th
+      - mof.go.th
+      - rd.go.th
+      - bot.or.th
+      - nso.go.th
+      - .go.kr
+      - immigration.go.kr
+      - customs.go.kr
+      - visitkorea.or.kr
+

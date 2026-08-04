@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+client_secret*.json
+token*.json
+reports/*.json
+reports/*.md
+!reports/.gitkeep
+
