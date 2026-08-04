@@ -15,6 +15,16 @@ def main() -> None:
     parser.add_argument("client_secret", type=Path)
     parser.add_argument("--label", required=True, help="Account label, for example english or thai")
     parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Print the authorization URL instead of opening the default browser",
+    )
+    parser.add_argument(
+        "--url-output",
+        type=Path,
+        help="Private file that temporarily receives the authorization URL",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="Private output JSON path; defaults to oauth-output-<label>.json",
@@ -22,7 +32,21 @@ def main() -> None:
     args = parser.parse_args()
 
     flow = InstalledAppFlow.from_client_secrets_file(str(args.client_secret), SCOPES)
-    credentials = flow.run_local_server(port=0, prompt="consent", access_type="offline")
+    if args.url_output:
+        original_authorization_url = flow.authorization_url
+
+        def authorization_url(*url_args, **url_kwargs):
+            url, state = original_authorization_url(*url_args, **url_kwargs)
+            args.url_output.write_text(url, encoding="utf-8")
+            return url, state
+
+        flow.authorization_url = authorization_url
+    credentials = flow.run_local_server(
+        port=0,
+        prompt="consent",
+        access_type="offline",
+        open_browser=not args.no_browser,
+    )
     output = args.output or Path(f"oauth-output-{args.label}.json")
     output.write_text(
         json.dumps(

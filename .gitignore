@@ -6,6 +6,7 @@ __pycache__/
 client_secret*.json
 token*.json
 oauth-output*.json
+.oauth-authorize-*.txt
 reports/*.json
 reports/*.md
 !reports/.gitkeep
